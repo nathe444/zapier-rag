@@ -49,12 +49,30 @@ class DocumentService:
         )
 
     def process_pdf(self, file_path: str) -> List[str]:
-        # Process new document without clearing existing embeddings
+        # Process the new document
         loader = PyPDFLoader(file_path)
         documents = loader.load()
-        texts = self.text_splitter.split_documents(documents)
-        self.vector_store.add_documents(texts)
-        return [doc.page_content for doc in texts]
+        
+        # Split documents into chunks
+        chunks = self.text_splitter.split_documents(documents)
+        
+        # Clear existing vectors and add new ones
+        self.vector_store.delete_collection()
+        self.vector_store = PGVector.from_documents(
+            documents=chunks,
+            embedding=self.embeddings,
+            connection_string=self.connection_string,
+            collection_name="document_embeddings"
+        )
+        
+        # Reinitialize the QA chain with the new vector store
+        self.qa_chain = ConversationalRetrievalChain.from_llm(
+            llm=self.llm,
+            retriever=self.vector_store.as_retriever(search_kwargs={"k": 3}),
+            return_source_documents=True
+        )
+        
+        return chunks
 
     async def get_streaming_answer(self, query: str, chat_history: List = None) -> AsyncGenerator[str, None]:
         if chat_history is None:
