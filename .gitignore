@@ -1,0 +1,22 @@
+# Environment variables (contains API keys and DB credentials)
+.env
+
+# Python cache files
+__pycache__/
+*.pyc
+
+# Virtual Environment
+venv/
+env/
+
+# Temporary PDF files
+test_documents/
+temp_*.pdf
+
+# IDE settings
+.vscode/
+.idea/
+
+# System files
+.DS_Store
+Thumbs.db
