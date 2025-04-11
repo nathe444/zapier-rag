@@ -1,47 +1,50 @@
-from sqlalchemy import Column, Integer, String, JSON, DateTime, Boolean, ForeignKey
-from sqlalchemy.types import Float
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, String, Float, Text, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
+from app.database.database import Base
+import uuid
 from datetime import datetime
-from pgvector.sqlalchemy import Vector
-
-Base = declarative_base()
-
-class Bot(Base):
-    __tablename__ = 'bots'
-    
-    id = Column(String, primary_key=True)
-    name = Column(String, nullable=False)
-    description = Column(String)
-    system_prompt = Column(String)
-    model_name = Column(String, default="gpt-3.5-turbo")
-    temperature = Column(Float, default=0.7)
-    llm_provider = Column(String, default="openai")
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class User(Base):
-    __tablename__ = 'users'
-    
-    id = Column(String, primary_key=True)
-    name = Column(String, nullable=False)
-    email = Column(String, unique=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    __tablename__ = "users"
 
-class Session(Base):
-    __tablename__ = 'sessions'
-    
-    id = Column(String, primary_key=True)
-    bot_id = Column(String, ForeignKey('bots.id'))
-    user_id = Column(String, ForeignKey('users.id'))
-    messages = Column(JSON, default=list)
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
+    username = Column(String, unique=True, index=True)
+    email = Column(String, unique=True, index=True)
+    hashed_password = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-class DocumentEmbedding(Base):
-    __tablename__ = 'document_embeddings'
     
-    id = Column(Integer, primary_key=True)
-    content = Column(String)
-    doc_metadata = Column(JSON)  # Changed from 'metadata' to 'doc_metadata'
-    embedding = Column(Vector(1536))
+    # Relationship with bots
+    bots = relationship("Bot", back_populates="user")
+
+class Bot(Base):
+    __tablename__ = "bots"
+
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String, index=True)
+    description = Column(Text, nullable=True)
+    system_prompt = Column(Text, nullable=True)
+    model_name = Column(String)
+    temperature = Column(Float, default=0.7)
+    llm_provider = Column(String, default="openai")
+    user_id = Column(String, ForeignKey("users.id"))  # Add this foreign key
     created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationship with user
+    user = relationship("User", back_populates="bots")
+    
+    # Relationship with documents
+    documents = relationship("Document", back_populates="bot")
+
+class Document(Base):
+    __tablename__ = "documents"
+    
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
+    filename = Column(String)
+    content_type = Column(String)
+    bot_id = Column(String, ForeignKey("bots.id"))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationship with bot
+    bot = relationship("Bot", back_populates="documents")

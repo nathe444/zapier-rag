@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Train Bot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="file"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .back-btn {
+            background-color: #607D8B;
+        }
+        .back-btn:hover {
+            background-color: #546E7A;
+        }
+        .clear-btn {
+            background-color: #F44336;
+        }
+        .clear-btn:hover {
+            background-color: #E53935;
+        }
+        .document-list {
+            margin-top: 20px;
+        }
+        .document-item {
+            padding: 10px;
+            border: 1px solid #eee;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+        .progress-bar {
+            width: 100%;
+            background-color: #e0e0e0;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .progress {
+            height: 20px;
+            background-color: #4CAF50;
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <h1>Train Your Bot</h1>
+    <div id="bot-info">
+        <h2 id="bot-name">Loading...</h2>
+        <p id="bot-description"></p>
+    </div>
+    
+    <div class="container">
+        <h2>Upload Documents</h2>
+        <p>Upload PDF files to train your bot. The bot will learn from the content of these documents.</p>
+        
+        <form id="upload-form">
+            <div class="form-group">
+                <label for="document">Select PDF File:</label>
+                <input type="file" id="document" accept=".pdf" required>
+            </div>
+            
+            <div class="progress-bar hidden" id="progress-container">
+                <div class="progress" id="progress"></div>
+            </div>
+            
+            <button type="submit">Upload Document</button>
+            <button type="button" class="clear-btn" id="clear-knowledge-btn">Clear Knowledge Base</button>
+            <button type="button" class="back-btn" id="back-btn">Back to Bots</button>
+        </form>
+        
+        <div class="document-list" id="document-list">
+            <h3>Uploaded Documents</h3>
+            <p>Loading documents...</p>
+        </div>
+    </div>
+
+    <script>
+        // Get bot ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const botId = urlParams.get('botId');
+        
+        if (!botId) {
+            window.location.href = '/';
+        }
+        
+        // DOM Elements
+        const botNameElement = document.getElementById('bot-name');
+        const botDescriptionElement = document.getElementById('bot-description');
+        const uploadForm = document.getElementById('upload-form');
+        const documentListElement = document.getElementById('document-list');
+        const backBtn = document.getElementById('back-btn');
+        const clearKnowledgeBtn = document.getElementById('clear-knowledge-btn');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress');
+        
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchBotDetails();
+            fetchDocuments();
+        });
+        
+        uploadForm.addEventListener('submit', uploadDocument);
+        backBtn.addEventListener('click', () => {
+            window.location.href = '/';
+        });
+        
+        clearKnowledgeBtn.addEventListener('click', clearKnowledgeBase);
+        
+        // Functions
+        async function fetchBotDetails() {
+            try {
+                const response = await fetch(`/api/bots/${botId}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch bot details');
+                }
+                
+                const bot = await response.json();
+                botNameElement.textContent = bot.name;
+                botDescriptionElement.textContent = bot.description || 'No description provided.';
+                
+            } catch (error) {
+                console.error('Error fetching bot details:', error);
+                botNameElement.textContent = 'Error loading bot';
+                botDescriptionElement.textContent = 'Could not load bot details.';
+            }
+        }
+        
+        async function fetchDocuments() {
+            try {
+                // In a real app, you would have an endpoint to fetch documents for a specific bot
+                // For this demo, we'll simulate it
+                documentListElement.innerHTML = '<p>No documents uploaded yet.</p>';
+                
+            } catch (error) {
+                console.error('Error fetching documents:', error);
+                documentListElement.innerHTML = '<p>Error loading documents. Please try again.</p>';
+            }
+        }
+        
+        async function uploadDocument(event) {
+            event.preventDefault();
+            
+            const fileInput = document.getElementById('document');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a file to upload.');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            // Show progress bar
+            progressContainer.classList.remove('hidden');
+            progressBar.style.width = '0%';
+            
+            try {
+                // Simulate progress
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += 5;
+                    if (progress > 90) clearInterval(interval);
+                    progressBar.style.width = `${progress}%`;
+                }, 200);
+                
+                const response = await fetch(`/api/bots/${botId}/documents`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                clearInterval(interval);
+                progressBar.style.width = '100%';
+                
+                if (!response.ok) {
+                    throw new Error('Failed to upload document');
+                }
+                
+                const result = await response.json();
+                
+                // Reset form
+                fileInput.value = '';
+                
+                // Hide progress bar after a delay
+                setTimeout(() => {
+                    progressContainer.classList.add('hidden');
+                }, 1000);
+                
+                // Show success message
+                alert(`Document uploaded successfully! Processed ${result.chunks_count} chunks.`);
+                
+                // Refresh document list
+                fetchDocuments();
+                
+            } catch (error) {
+                console.error('Error uploading document:', error);
+                alert('Failed to upload document. Please try again.');
+                progressContainer.classList.add('hidden');
+            }
+        }
+        
+        async function clearKnowledgeBase() {
+            if (!confirm('Are you sure you want to clear the entire knowledge base for this bot? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/bots/${botId}/clear-knowledge`, {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to clear knowledge base');
+                }
+                
+                alert('Knowledge base cleared successfully.');
+                
+                // Refresh document list
+                fetchDocuments();
+                
+            } catch (error) {
+                console.error('Error clearing knowledge base:', error);
+                alert('Failed to clear knowledge base. Please try again.');
+            }
+        }
+    </script>
+</body>
+</html>

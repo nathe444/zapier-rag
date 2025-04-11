@@ -1,162 +1,298 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>Document QA System</title>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bot Management System</title>
     <style>
-      body {
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 20px;
-        font-family: Arial;
-      }
-      .chat-container {
-        border: 1px solid #ddd;
-        padding: 20px;
-        margin: 20px 0;
-        border-radius: 5px;
-      }
-      .message {
-        margin: 10px 0;
-        padding: 10px;
-        border-radius: 5px;
-      }
-      .user {
-        background: #e3f2fd;
-      }
-      .bot {
-        background: #f5f5f5;
-      }
-      #fileUpload {
-        margin: 20px 0;
-      }
-      textarea {
-        width: 100%;
-        padding: 10px;
-        margin: 10px 0;
-      }
-      button {
-        padding: 10px 20px;
-        background: #007bff;
-        color: white;
-        border: none;
-        border-radius: 5px;
-      }
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .left-panel {
+            flex: 1;
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        .right-panel {
+            flex: 2;
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        .bot-list {
+            margin-top: 20px;
+        }
+        .bot-item {
+            padding: 10px;
+            border: 1px solid #eee;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .bot-item:hover {
+            background-color: #f5f5f5;
+        }
+        .bot-item.selected {
+            background-color: #e0f7fa;
+            border-color: #80deea;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .hidden {
+            display: none;
+        }
     </style>
-  </head>
-  <body>
-    <h1>Document QA System</h1>
-
-    <div id="fileUpload">
-      <h3>Upload PDF Document</h3>
-      <input type="file" id="pdfFile" accept=".pdf" />
-      <button onclick="uploadPDF()">Upload</button>
-    </div>
-
-    <div class="chat-container">
-      <h3>Chat Interface</h3>
-      <div id="chatHistory"></div>
-      <textarea
-        id="userInput"
-        placeholder="Ask a question..."
-        rows="3"
-      ></textarea>
-      <button onclick="sendMessage()">Send</button>
+</head>
+<body>
+    <h1>Bot Management System</h1>
+    
+    <div class="container">
+        <div class="left-panel">
+            <h2>Create New Bot</h2>
+            <form id="create-bot-form">
+                <div class="form-group">
+                    <label for="bot-name">Bot Name:</label>
+                    <input type="text" id="bot-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="bot-description">Description:</label>
+                    <textarea id="bot-description" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="system-prompt">System Prompt:</label>
+                    <textarea id="system-prompt" rows="3">You are a helpful assistant.</textarea>
+                </div>
+                <div class="form-group">
+                    <label for="model-name">Model:</label>
+                    <select id="model-name">
+                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                        <option value="gpt-4">GPT-4</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="temperature">Temperature:</label>
+                    <input type="number" id="temperature" min="0" max="2" step="0.1" value="0.7">
+                </div>
+                <button type="submit">Create Bot</button>
+            </form>
+            
+            <h2>Your Bots</h2>
+            <div id="bot-list" class="bot-list">
+                <p>Loading bots...</p>
+            </div>
+        </div>
+        
+        <div class="right-panel">
+            <div id="bot-details" class="hidden">
+                <h2 id="selected-bot-name">Bot Name</h2>
+                <p id="selected-bot-description">Bot description will appear here.</p>
+                
+                <div class="action-buttons">
+                    <button id="train-bot-btn">Train Bot</button>
+                    <button id="chat-bot-btn">Chat with Bot</button>
+                    <button id="delete-bot-btn">Delete Bot</button>
+                </div>
+            </div>
+            
+            <div id="no-selection" class="right-panel-content">
+                <h2>No Bot Selected</h2>
+                <p>Please select a bot from the list or create a new one.</p>
+            </div>
+        </div>
     </div>
 
     <script>
-      let chatHistory = [];
-
-      async function uploadPDF() {
-        const fileInput = document.getElementById("pdfFile");
-        const file = fileInput.files[0];
-        if (!file) {
-          alert("Please select a file");
-          return;
-        }
-
-        const formData = new FormData();
-        formData.append("file", file);
-
-        try {
-          const response = await fetch("/upload", {
-            method: "POST",
-            body: formData,
-          });
-          const result = await response.json();
-          chatHistory = [];
-          document.getElementById("chatHistory").innerHTML = "";
-          alert(result.message);
-        } catch (error) {
-          alert("Error uploading file");
-        }
-      }
-
-      async function sendMessage() {
-        const input = document.getElementById("userInput");
-        const message = input.value.trim();
-        if (!message) return;
-
-        // Display user message
-        displayMessage("user", message);
-        input.value = "";
-
-        // Create bot message container
-        const botMessageDiv = document.createElement("div");
-        botMessageDiv.className = "message bot";
-        document.getElementById("chatHistory").appendChild(botMessageDiv);
-
-        try {
-          const response = await fetch("/chat", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Accept: "text/event-stream",
-            },
-            body: JSON.stringify({
-              question: message,
-              chat_history: chatHistory.map(([q, a]) => [String(q), String(a)]),
-            }),
-          });
-
-          if (!response.ok)
-            throw new Error(`HTTP error! status: ${response.status}`);
-
-          const reader = response.body.getReader();
-          let botResponse = "";
-
-          while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-
-            const text = new TextDecoder().decode(value);
-            const lines = text.split("\n");
-
-            for (const line of lines) {
-              if (line.startsWith("data: ")) {
-                const chunk = line.slice(6);
-                botResponse += chunk;
-                botMessageDiv.textContent = botResponse;
-              }
+        // Global variables
+        let selectedBot = null;
+        const userId = 'test-user-id'; // In a real app, this would come from authentication
+        
+        // DOM Elements
+        const botListElement = document.getElementById('bot-list');
+        const createBotForm = document.getElementById('create-bot-form');
+        const botDetailsElement = document.getElementById('bot-details');
+        const noSelectionElement = document.getElementById('no-selection');
+        const selectedBotNameElement = document.getElementById('selected-bot-name');
+        const selectedBotDescriptionElement = document.getElementById('selected-bot-description');
+        const trainBotBtn = document.getElementById('train-bot-btn');
+        const chatBotBtn = document.getElementById('chat-bot-btn');
+        const deleteBotBtn = document.getElementById('delete-bot-btn');
+        
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', fetchBots);
+        createBotForm.addEventListener('submit', createBot);
+        trainBotBtn.addEventListener('click', () => {
+            if (selectedBot) {
+                window.location.href = `/train.html?botId=${selectedBot.id}`;
             }
-          }
-
-          if (botResponse) {
-            chatHistory.push([message, botResponse]);
-          }
-        } catch (error) {
-          console.error("Error:", error);
-          botMessageDiv.textContent = "Error: " + error.message;
+        });
+        chatBotBtn.addEventListener('click', () => {
+            if (selectedBot) {
+                window.location.href = `/chat.html?botId=${selectedBot.id}`;
+            }
+        });
+        deleteBotBtn.addEventListener('click', deleteBot);
+        
+        // Functions
+        async function fetchBots() {
+            try {
+                const response = await fetch(`/api/users/${userId}/bots`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch bots');
+                }
+                
+                const bots = await response.json();
+                renderBotList(bots);
+            } catch (error) {
+                console.error('Error fetching bots:', error);
+                botListElement.innerHTML = '<p>Error loading bots. Please try again.</p>';
+            }
         }
-      }
-
-      function displayMessage(role, content) {
-        const chatHistory = document.getElementById("chatHistory");
-        const messageDiv = document.createElement("div");
-        messageDiv.className = `message ${role}`;
-        messageDiv.textContent = content;
-        chatHistory.appendChild(messageDiv);
-        chatHistory.scrollTop = chatHistory.scrollHeight;
-      }
+        
+        function renderBotList(bots) {
+            if (bots.length === 0) {
+                botListElement.innerHTML = '<p>No bots found. Create your first bot!</p>';
+                return;
+            }
+            
+            botListElement.innerHTML = '';
+            bots.forEach(bot => {
+                const botItem = document.createElement('div');
+                botItem.className = 'bot-item';
+                botItem.innerHTML = `<strong>${bot.name}</strong>`;
+                botItem.addEventListener('click', () => selectBot(bot));
+                botListElement.appendChild(botItem);
+            });
+        }
+        
+        function selectBot(bot) {
+            selectedBot = bot;
+            
+            // Update UI
+            document.querySelectorAll('.bot-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            
+            event.currentTarget.classList.add('selected');
+            
+            // Show bot details
+            botDetailsElement.classList.remove('hidden');
+            noSelectionElement.classList.add('hidden');
+            
+            // Update details
+            selectedBotNameElement.textContent = bot.name;
+            selectedBotDescriptionElement.textContent = bot.description || 'No description provided.';
+        }
+        
+        async function createBot(event) {
+            event.preventDefault();
+            
+            const botData = {
+                user_id: userId,
+                name: document.getElementById('bot-name').value,
+                description: document.getElementById('bot-description').value,
+                system_prompt: document.getElementById('system-prompt').value,
+                model_name: document.getElementById('model-name').value,
+                temperature: parseFloat(document.getElementById('temperature').value),
+                llm_provider: 'openai'
+            };
+            
+            try {
+                const response = await fetch('/api/bots', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(botData)
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to create bot');
+                }
+                
+                const newBot = await response.json();
+                
+                // Reset form
+                createBotForm.reset();
+                
+                // Refresh bot list
+                fetchBots();
+                
+                // Select the new bot
+                setTimeout(() => {
+                    selectBot(newBot);
+                }, 500);
+                
+            } catch (error) {
+                console.error('Error creating bot:', error);
+                alert('Failed to create bot. Please try again.');
+            }
+        }
+        
+        async function deleteBot() {
+            if (!selectedBot) return;
+            
+            if (!confirm(`Are you sure you want to delete ${selectedBot.name}?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/bots/${selectedBot.id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to delete bot');
+                }
+                
+                // Reset selection
+                selectedBot = null;
+                botDetailsElement.classList.add('hidden');
+                noSelectionElement.classList.remove('hidden');
+                
+                // Refresh bot list
+                fetchBots();
+                
+            } catch (error) {
+                console.error('Error deleting bot:', error);
+                alert('Failed to delete bot. Please try again.');
+            }
+        }
     </script>
-  </body>
+</body>
 </html>

@@ -15,3 +15,5 @@ pypdf
 tiktoken
 langchain-openai
 jinja2
+email-validator
+langchain-postgres
